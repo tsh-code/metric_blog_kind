@@ -1,0 +1,36 @@
+loki:
+  enabled: true
+
+promtail:
+  enabled: true
+
+grafana:
+  enabled: true
+  sidecar:
+    dashboards:
+      enabled: true
+      # label that the configmaps with dashboards are marked with
+      label: grafana_dashboard
+      searchNamespace: ALL
+    datasources:
+      enabled: true
+  image:
+    tag: 6.3.0-beta2
+  adminPassword: admin
+  datasources:
+    datasources.yaml:
+      apiVersion: 1
+      datasources:
+      - name: Prometheus
+        type: prometheus
+        url: http://prometheus-prometheus-server
+        access: proxy
+        isDefault: true
+      - name: Loki
+        type: loki
+        url: http://loki:3100/
+
+prometheus:
+  enabled: true
+  server:
+    fullnameOverride: prometheus-server

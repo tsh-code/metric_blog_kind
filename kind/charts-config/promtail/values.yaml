@@ -1,0 +1,2 @@
+loki:
+  serviceName: "loki.monitoring.svc.cluster.local"

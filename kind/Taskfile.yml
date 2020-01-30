@@ -1,0 +1,99 @@
+version: '2'
+env:
+  HELMFILE_HELM3: 1
+vars:
+  K8S_IMAGE: kindest/node:v1.17.0
+  K8S_NAME: kind
+  HELM_VERSION: v3.0.2
+  HELMFILE_BASE_COMMAND: helmfile --helm-binary=./helm
+tasks:
+  default:
+    cmds:
+      - task -l
+  create-cluster:
+    desc: KIND cluster create
+    cmds:
+      - kind create cluster --name {{.K8S_NAME}} --image {{.K8S_IMAGE}} --config kind-cluster.yaml
+  delete-cluster:
+    desc: KIND cluster delete
+    cmds:
+      - kind delete cluster --name {{.K8S_NAME}}
+
+  kubeconfig:
+    desc: Prepare envrc file with kubeconfig path.
+    cmds:
+      - kind get kubeconfig --name={{.K8S_NAME}} > kind_kubeconfig
+      - echo "export KUBECONFIG={{.KUBE_KIND_CONF_DIR}}/kind_kubeconfig" > .envrc
+      - direnv allow
+    vars:
+      KUBE_KIND_CONF_DIR:
+        sh: pwd
+
+#Deployments
+  deploy-loki-stack:
+    desc: deploy loki with grafana
+    cmds:
+      - "{{.HELMFILE_BASE_COMMAND}} ./helm --selector name=loki sync"
+  deploy-dashboards-kubernetes:
+    desc: deploy grafana dashboards related to the kubernetes
+    cmds:
+      - kubectl apply -f resources/grafana/*.yaml
+  deploy-loki:
+    desc: deploy loki
+    cmds:
+      - "{{.HELMFILE_BASE_COMMAND}} --selector name=loki sync"
+  deploy-promtail:
+    desc: deploy promtail
+    cmds:
+      - "{{.HELMFILE_BASE_COMMAND}} --selector name=promtail sync"
+  deploy-prometheus-operator:
+    desc: deploy prometheus operator
+    cmds:
+      - "{{.HELMFILE_BASE_COMMAND}} --selector name=prometheus-operator sync"
+  deploy-metrics-server:
+    desc: metric server
+    cmds:
+      - "{{.HELMFILE_BASE_COMMAND}} --selector name=metrics-server sync"
+  deploy-monitoring-stack:
+    desc: deploy prometheus operator, promtail, loki as one stack
+    cmds:
+      - kubectl apply -f resources/namespaces.yaml
+      - task: deploy-metrics-server
+      - task: deploy-loki
+      - task: deploy-promtail
+      - task: deploy-prometheus-operator
+      - task: deploy-dashboards-kubernetes
+  deploy-kubeapps:
+    desc: https://github.com/kubeapps/kubeapps/blob/master/docs/user/getting-started.md
+    cmds:
+      - ./helm repo add bitnami https://charts.bitnami.com/bitnami
+      - kubectl create namespace kubeapps
+      - ./helm install kubeapps bitnami/kubeapps --namespace kubeapps --set useHelm3=true
+      - kubectl create serviceaccount kubeapps-operator
+      - kubectl create clusterrolebinding kubeapps-operator --clusterrole=cluster-admin --serviceaccount=default:kubeapps-operator
+      # - "kubectl get secret $(kubectl get serviceaccount kubeapps-operator -o jsonpath='{.secrets[].name}') -o jsonpath='{.data.token}' -o go-template='{{.data.token | base64decode}}' && echo"
+
+#Tools
+  tools-helm:
+    desc: install helm 3
+    cmds:
+      - wget -qO-  https://get.helm.sh/helm-{{.HELM_VERSION}}-darwin-amd64.tar.gz | tar xvz - -C ./
+      - mv darwin-amd64/helm ./
+      - chmod 755 helm
+      - rm -rf darwin-amd64
+  tools-kubectl:
+    desc: install kubectl for MacOS
+    cmds:
+      - brew unlink kubernetes-cli && brew install https://raw.githubusercontent.com/Homebrew/homebrew-core/b426e0a3bf5842bc4f944bb64c3c6634f212d763/Formula/kubernetes-cli.rb
+
+  kind-install:
+    desc: Install KIND
+    cmds:
+      - curl -Lo ./kind-darwin-amd64 https://github.com/kubernetes-sigs/kind/releases/download/v0.7.0/kind-darwin-amd64
+      - chmod +x ./kind-darwin-amd64
+      - mv ./kind-darwin-amd64 /usr/local/bin/kind
+#Port Forward Tasks
+  port-forward-grafana:
+    desc: local port forward to tekton dashboard service
+    cmds:
+      - kubectl port-forward --namespace monitoring service/prometheus-operator-grafana 3000:80

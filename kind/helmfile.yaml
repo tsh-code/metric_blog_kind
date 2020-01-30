@@ -1,0 +1,42 @@
+repositories:
+  - name: svc-cat
+    url: https://svc-catalog-charts.storage.googleapis.com
+  - name: istio
+    url: https://storage.googleapis.com/istio-release/releases/1.4.3/charts
+  - name: loki
+    url: https://grafana.github.io/loki/charts
+releases:
+  - name: metrics-server
+    chart: stable/metrics-server
+    version: 2.9.0
+    namespace: kube-system
+    values:
+      - charts-config/metrics-server/values.yaml
+
+  - name: loki-stack
+    chart: loki/loki-stack
+    namespace: monitoring
+    values:
+      - charts-config/loki-stack/values.yaml
+
+  - name: loki
+    chart: loki/loki
+    version: 0.22.0
+    namespace: monitoring
+
+  - name: prometheus-operator
+    chart: stable/prometheus-operator
+    version: 8.5.12
+    namespace: monitoring
+    wait: true
+    timeout: 1200
+    values:
+      - charts-config/prometheus-operator/values.yaml
+    # force: true
+
+  - name: promtail
+    chart: loki/promtail
+    version: 0.16.2
+    namespace: monitoring
+    values:
+      - charts-config/promtail/values.yaml
