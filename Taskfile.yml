@@ -1,0 +1,121 @@
+version: '2'
+env:
+  HELMFILE_HELM3: 1
+vars:
+  K8S_IMAGE: kindest/node:v1.17.0
+  K8S_NAME: kind
+  HELM_VERSION: v3.0.2
+  HELMFILE_BASE_COMMAND: ./helmfile --helm-binary=./helm
+
+tasks:
+  default:
+    cmds:
+      - task -l
+  create-cluster:
+    desc: KIND cluster create
+    cmds:
+      - ./kind create cluster --name {{.K8S_NAME}} --image {{.K8S_IMAGE}} --config kind-cluster.yaml
+  delete-cluster:
+    desc: KIND cluster delete
+    cmds:
+      - ./kind delete cluster --name {{.K8S_NAME}}
+
+  kubeconfig:
+    desc: Prepare envrc file with kubeconfig path.
+    cmds:
+      - ./kind get kubeconfig --name={{.K8S_NAME}} > kind_kubeconfig
+      - echo "export KUBECONFIG={{.KUBE_KIND_CONF_DIR}}/kind_kubeconfig" > .envrc
+      - direnv allow
+    vars:
+      KUBE_KIND_CONF_DIR:
+        sh: pwd
+
+  rebuild:
+    desc: Rebuild cluster and monitoring stack
+    cmds:
+    - task: delete-cluster
+    - task: create-cluster
+    - task: kubeconfig
+    - task: deploy-ingress
+    - task: deploy-monitoring-stack
+
+#Deployments
+  deploy-loki-stack:
+    desc: deploy loki with grafana
+    cmds:
+      - "{{.HELMFILE_BASE_COMMAND}} --selector name=loki sync"
+  deploy-dashboards-kubernetes:
+    desc: deploy grafana dashboards related to the kubernetes
+    cmds:
+      - ./kubectl apply -f resources/grafana/dashboards -R
+  deploy-loki:
+    desc: deploy loki
+    cmds:
+      - "{{.HELMFILE_BASE_COMMAND}} --selector name=loki sync"
+  deploy-promtail:
+    desc: deploy promtail
+    cmds:
+      - "{{.HELMFILE_BASE_COMMAND}} --selector name=promtail sync"
+  deploy-prometheus-operator:
+    desc: deploy prometheus operator
+    cmds:
+      - "{{.HELMFILE_BASE_COMMAND}} --selector name=prometheus-operator sync"
+  deploy-metrics-server:
+    desc: metric server
+    cmds:
+      - "{{.HELMFILE_BASE_COMMAND}} --selector name=metrics-server sync"
+  deploy-monitoring-stack:
+    desc: deploy prometheus operator, promtail, loki as one stack
+    cmds:
+      - ./kubectl apply -f resources/namespaces.yaml
+      - task: deploy-metrics-server
+      - task: deploy-loki
+      - task: deploy-promtail
+      - task: deploy-prometheus-operator
+      - task: deploy-dashboards-kubernetes
+  deploy-ingress:
+    desc: deploy basic ingress resources
+    cmds:
+      - ./kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/nginx-0.27.0/deploy/static/mandatory.yaml
+      - ./kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/nginx-0.27.0/deploy/static/provider/baremetal/service-nodeport.yaml
+      - ./kubectl patch deployments -n ingress-nginx nginx-ingress-controller -p '{"spec":{"template":{"spec":{"containers":[{"name":"nginx-ingress-controller","ports":[{"containerPort":80,"hostPort":80},{"containerPort":443,"hostPort":443}]}],"nodeSelector":{"ingress-ready":"true"},"tolerations":[{"key":"node-role.kubernetes.io/master","operator":"Equal","effect":"NoSchedule"}]}}}}'
+
+  #Tools
+  tools-helm:
+    desc: install helm 3
+    cmds:
+      - wget -qO-  https://get.helm.sh/helm-{{.HELM_VERSION}}-{{OS}}-{{ARCH}}.tar.gz | tar xvz -C ./
+      - mv {{OS}}-{{ARCH}}/helm ./
+      - chmod 755 helm
+      - rm -rf {{OS}}-{{ARCH}}
+      - curl -Lo ./helmfile https://github.com/roboll/helmfile/releases/download/v0.108.0/helmfile_{{OS}}_{{ARCH}}
+      - chmod +x ./helmfile
+      - ./helm repo add stable https://kubernetes-charts.storage.googleapis.com/
+
+  tools-kubectl-macos:
+    desc: install kubectl for MacOS
+    cmds:
+      - brew unlink kubernetes-cli && brew install https://raw.githubusercontent.com/Homebrew/homebrew-core/b426e0a3bf5842bc4f944bb64c3c6634f212d763/Formula/kubernetes-cli.rb
+
+
+  kubernetes-install:
+    desc: Install KIND
+    cmds:
+      - curl -LO https://storage.googleapis.com/kubernetes-release/release/v1.17.0/bin/{{OS}}/{{ARCH}}/kubectl
+      - chmod +x ./kubectl
+
+  kind-install:
+    desc: Install KIND
+    cmds:
+      - curl -Lo ./kind "https://github.com/kubernetes-sigs/kind/releases/download/v0.7.0/kind-{{OS}}-{{ARCH}}"
+      - chmod +x ./kind
+
+  #Port Forward Tasks
+  port-forward-grafana:
+    desc: local port forward to the grafana dashboaards
+    cmds:
+      - ./kubectl port-forward --namespace monitoring service/prometheus-operator-grafana 3000:80
+  port-forward-prometheus:
+    desc: local port forward to the prometheus site
+    cmds:
+      - ./kubectl -n monitoring port-forward svc/prometheus-operator-prometheus 9090:9090

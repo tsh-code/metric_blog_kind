@@ -1,0 +1,8 @@
+kind-darwin*
+.idea
+helm
+helmfile
+kind
+kind_kubeconfig
+kubectl
+.envrc

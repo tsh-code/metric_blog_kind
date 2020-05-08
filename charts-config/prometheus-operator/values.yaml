@@ -1,0 +1,52 @@
+#Prometheus Configuration
+prometheus:
+  prometheusSpec:
+    resources:
+      requests:
+        memory: 128Mi
+      limits:
+        memory: 2048Mi
+# Some additional configuration to gather informations about cluster components
+kubeControllerManager:
+  enabled: true
+kubeScheduler:
+  enabled: true
+coreDns:
+  enabled: true
+kubeDns:
+  enabled: false
+# Grafana configuration.
+# Full documentation for grafana chart: https://github.com/helm/charts/tree/master/stable/grafana
+grafana:
+  repository: grafana/grafana
+  tag: 6.4.2
+  adminPassword: 12tsh3
+  env:
+    GF_SERVER_DOMAIN: false
+    GF_SERVER_ROOT_URL: http://localhost
+    GF_AUTH_ANONYMOUS_ORG_NAME: local
+    GF_USERS_ALLOW_SIGN_UP: false
+  additionalDataSources:
+    -   name: Logs
+        type: loki
+        access: proxy
+        url: http://loki.monitoring.svc.cluster.local:3100
+        jsonData:
+          maxLines: 1000
+  grafana.ini:
+    paths:
+      data: /var/lib/grafana/data
+      logs: /var/log/grafana
+      plugins: /var/lib/grafana/plugins
+      provisioning: /etc/grafana/provisioning
+    analytics:
+      check_for_updates: true
+    log:
+      mode: console
+    grafana_net:
+      url: https://grafana.net
+  sidecar:
+    dashboards:
+      searchNamespace: ALL
+    datasources:
+      searchNamespace: ALL

@@ -2,12 +2,14 @@
 
 ## Quick Information
 
-- Istio - Work in progress (do not use)
+- Simple stack with monitoring/logging
 
 ## Requirements
 
-- <https://taskfile.dev>
-- envrc
+- [Docker](https://www.docker.com/)
+- [Docker-compose](https://docs.docker.com/compose/)
+- [Task](https://taskfile.dev)
+- [envrc](https://direnv.net/)
 
 ## Installation
 
@@ -28,11 +30,13 @@
 ## Monitoring quick start
 
 ```bash
+task kubernetes-install
 task kind-install
 task tools-helm
 task create-cluster
-#Envrc required to work \/
+#Envrc required to work
 task kubeconfig
+task deploy-ingress
 task deploy-monitoring-stack
 ```
 
@@ -40,6 +44,15 @@ task deploy-monitoring-stack
 
 ```bash
 task port-forward-grafana
-# Open in browser http://localhost:9097
+# Open in browser http://localhost:3000
+# credentials admin/12tsh3
+```
+
+
+### Prometheus Dashboards
+
+```bash
+task port-forward-prometheus
+# Open in browser http://localhost:9090
 ```
 
