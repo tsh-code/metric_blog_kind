@@ -1,10 +1,11 @@
 repositories:
   - name: svc-cat
-    url: https://svc-catalog-charts.storage.googleapis.com
+    url: https://kubernetes-sigs.github.io/service-catalog
   - name: istio
     url: https://storage.googleapis.com/istio-release/releases/1.4.3/charts
   - name: loki
     url: https://grafana.github.io/loki/charts
+
 releases:
   - name: metrics-server
     chart: stable/metrics-server
