@@ -4,7 +4,10 @@ env:
 vars:
   K8S_IMAGE: kindest/node:v1.17.0
   K8S_NAME: kind
-  HELM_VERSION: v3.0.2
+  HELM_VERSION: v3.4.2
+  KUBERNETES_VERSION: v1.17.0
+  KIND_VERSION: v0.7.0
+  HELMFILE_VERSION: v0.137.0
   HELMFILE_BASE_COMMAND: ./helmfile --helm-binary=./helm
 
 tasks:
@@ -88,9 +91,9 @@ tasks:
       - mv {{OS}}-{{ARCH}}/helm ./
       - chmod 755 helm
       - rm -rf {{OS}}-{{ARCH}}
-      - curl -Lo ./helmfile https://github.com/roboll/helmfile/releases/download/v0.108.0/helmfile_{{OS}}_{{ARCH}}
+      - curl -Lo ./helmfile https://github.com/roboll/helmfile/releases/download/{{.HELMFILE_VERSION}}/helmfile_{{OS}}_{{ARCH}}
       - chmod +x ./helmfile
-      - ./helm repo add stable https://kubernetes-charts.storage.googleapis.com/
+      - ./helm repo add stable https://charts.helm.sh/stable
 
   tools-kubectl-macos:
     desc: install kubectl for MacOS
@@ -101,13 +104,13 @@ tasks:
   kubernetes-install:
     desc: Install KIND
     cmds:
-      - curl -LO https://storage.googleapis.com/kubernetes-release/release/v1.17.0/bin/{{OS}}/{{ARCH}}/kubectl
+      - curl -LO https://storage.googleapis.com/kubernetes-release/release/{{.KUBERNETES_VERSION}}/bin/{{OS}}/{{ARCH}}/kubectl
       - chmod +x ./kubectl
 
   kind-install:
     desc: Install KIND
     cmds:
-      - curl -Lo ./kind "https://github.com/kubernetes-sigs/kind/releases/download/v0.7.0/kind-{{OS}}-{{ARCH}}"
+      - curl -Lo ./kind "https://github.com/kubernetes-sigs/kind/releases/download/{{.KIND_VERSION}}/kind-{{OS}}-{{ARCH}}"
       - chmod +x ./kind
 
   #Port Forward Tasks
